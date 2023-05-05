@@ -1,0 +1,34 @@
+---
+- name: Config Servers
+  hosts: all
+  become: yes
+  gather_facts: no
+  vars:
+
+  tasks:
+    - name: Get network
+      ansible.builtin.shell:
+        cmd: ip -br a | grep {{work_ip}} | awk '{ print $3 }'
+      register: srv_network
+
+    - name: Set GW
+      ansible.builtin.set_fact:
+        gw: '{{ [srv_network["stdout"]] }}'
+
+    - name: Set GW
+      ansible.builtin.set_fact:
+        gw: "{{ gw | ipaddr('1') | first | ipmath(0)}}"
+
+    - name: Add internal routes
+      ansible.builtin.lineinfile:
+        path: /etc/network/interfaces
+        line: 'up {{item}}'
+      loop:
+        - sleep 5
+        - ip r d default via 10.0.2.2
+        - ip r a default via {{ gw }}
+
+    - name: reboot system
+      ansible.builtin.reboot:
+        connect_timeout: 30
+
